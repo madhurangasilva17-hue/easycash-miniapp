@@ -9,7 +9,8 @@ const WEBAPP_URL = "https://delightful-marshmallow-185793.netlify.app";
 
 const REF_BONUS = 150; // referral එකකට add වෙන amount
 
-const bot = new TelegramBot(token, { polling: true });
+// ✅ IMPORTANT: Railway deploy එකට polling false (server up උනාම startPolling)
+const bot = new TelegramBot(token, { polling: false });
 
 const app = express();
 app.use(cors());
@@ -18,14 +19,20 @@ app.use(express.json());
 const DB_FILE = "./users.json";
 
 function loadDB() {
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
+  try {
+    if (!fs.existsSync(DB_FILE)) {
+      fs.writeFileSync(DB_FILE, JSON.stringify({ users: {} }, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+  } catch (e) {
+    return { users: {} };
   }
-  return JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
 }
+
 function saveDB(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
+
 function ensureUser(db, userId) {
   if (!db.users[userId]) {
     db.users[userId] = {
@@ -38,6 +45,7 @@ function ensureUser(db, userId) {
   }
   return db.users[userId];
 }
+
 function referralLink(userId) {
   return `https://t.me/${BOT_USERNAME}?start=ref_${userId}`;
 }
@@ -50,6 +58,7 @@ bot.onText(/\/start(?:\s+(.+))?/, (msg, match) => {
   const db = loadDB();
   const me = ensureUser(db, userId);
 
+  // referral payload: ref_<referrerId>
   if (payload.startsWith("ref_")) {
     const referrerId = payload.replace("ref_", "").trim();
 
@@ -59,6 +68,7 @@ bot.onText(/\/start(?:\s+(.+))?/, (msg, match) => {
     if (!isSelf && !alreadyLinked) {
       const refUser = ensureUser(db, referrerId);
 
+      // avoid duplicates
       if (!refUser.referrals.includes(userId)) {
         refUser.referrals.push(userId);
 
@@ -95,8 +105,9 @@ bot.onText(/\/start(?:\s+(.+))?/, (msg, match) => {
 
 // ✅ inline callback (My Referrals)
 bot.on("callback_query", (q) => {
-  const chatId = q.message.chat.id;
+  const chatId = q.message?.chat?.id;
   const userId = String(q.from.id);
+
   const db = loadDB();
   const me = ensureUser(db, userId);
   saveDB(db);
@@ -107,10 +118,16 @@ bot.on("callback_query", (q) => {
       `👥 Referrals: ${me.referrals.length}\n💰 Balance: ${me.balance} LKR\n🏦 Total Earnings: ${me.totalEarnings} LKR\n\n🔗 Link:\n${referralLink(userId)}`
     );
   }
-  bot.answerCallbackQuery(q.id);
+
+  bot.answerCallbackQuery(q.id).catch(() => {});
 });
 
-// ✅ API for WebApp (later)
+// ✅ Health check (Railway network config help)
+app.get("/", (req, res) => {
+  res.status(200).send("OK");
+});
+
+// ✅ API for WebApp
 app.get("/api/user/:id", (req, res) => {
   const userId = String(req.params.id);
   const db = loadDB();
@@ -127,5 +144,11 @@ app.get("/api/user/:id", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("API running on port", PORT));
-console.log("Bot Running ✅ (Referral + Earnings ON)...");
+
+app.listen(PORT, () => {
+  console.log("API running on port", PORT);
+
+  // ✅ Start bot polling AFTER server is running
+  bot.startPolling();
+  console.log("Bot polling started ✅ (Referral + Earnings ON)...");
+});
