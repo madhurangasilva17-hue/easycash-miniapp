@@ -1,0 +1,20 @@
+{
+  "users": {
+    "8014100790": {
+      "balance": 150,
+      "totalEarnings": 150,
+      "refBy": null,
+      "referrals": [
+        "7811243449"
+      ],
+      "createdAt": 1771239594486
+    },
+    "7811243449": {
+      "balance": 0,
+      "totalEarnings": 0,
+      "refBy": "8014100790",
+      "referrals": [],
+      "createdAt": 1771239660224
+    }
+  }
+}

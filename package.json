@@ -1,0 +1,14 @@
+{
+  "name": "easycash-miniapp",
+  "version": "1.0.0",
+  "description": "Telegram Mini App Referral System",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "node-telegram-bot-api": "^0.67.0"
+  }
+}
